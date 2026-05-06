@@ -4,17 +4,17 @@ use clap::Parser;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use sentrits_core::auth::default_authorizer::DefaultAuthorizer;
-use sentrits_core::auth::default_pairing_service::DefaultPairingService;
-use sentrits_core::auth::pairing::PairingService;
-use sentrits_core::net::{AppState, ServerConfig, run_servers};
-use sentrits_core::service::observation_store::ObservationStore;
-use sentrits_core::session::registry::SessionRegistry;
-use sentrits_core::store::file_store::{FileHostConfigStore, FilePairingStore, FileSessionStore};
-use sentrits_core::store::host_config::HostIdentity;
+use pty_claude::auth::default_authorizer::DefaultAuthorizer;
+use pty_claude::auth::default_pairing_service::DefaultPairingService;
+use pty_claude::auth::pairing::PairingService;
+use pty_claude::net::{AppState, ServerConfig, run_servers};
+use pty_claude::service::observation_store::ObservationStore;
+use pty_claude::session::registry::SessionRegistry;
+use pty_claude::store::file_store::{FileHostConfigStore, FilePairingStore, FileSessionStore};
+use pty_claude::store::host_config::HostIdentity;
 
 #[derive(Parser, Debug)]
-#[command(name = "sentrits")]
+#[command(name = "pty-claude")]
 #[command(version = "0.2.5")]
 #[command(about = "Terminal session management daemon", long_about = None)]
 struct Args {
@@ -229,7 +229,7 @@ fn main() {
             let data_dir = datadir.unwrap_or_else(|| {
                 dirs::data_local_dir()
                     .unwrap_or_else(|| std::path::PathBuf::from("."))
-                    .join("sentrits")
+                    .join("pty-claude")
                     .to_string_lossy()
                     .to_string()
             });
@@ -279,7 +279,7 @@ fn main() {
                 cors_origins: vec!["*".to_string()],
             };
 
-            println!("Sentrits v0.2.5 starting...");
+            println!("pty-claude v0.2.5 starting...");
             println!("  Admin:  {}:{}", config.admin_host, config.admin_port);
             println!("  Remote: {}:{}", config.remote_host, config.remote_port);
             println!("  Data:   {}", data_dir);

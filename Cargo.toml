@@ -1,11 +1,11 @@
 [package]
-name = "sentrits-core"
+name = "pty-claude"
 version = "0.2.5"
 edition = "2021"
 rust-version = "1.75"
 license = "MIT"
 description = "Terminal session management daemon with remote access, pairing, and evidence capture"
-authors = ["Sentrits Team"]
+authors = ["pty-claude Team"]
 
 [dependencies]
 # Async runtime
@@ -75,11 +75,11 @@ assert_matches = "1"
 pretty_assertions = "1"
 
 [[bin]]
-name = "sentrits"
+name = "pty-claude"
 path = "src/main.rs"
 
 [lib]
-name = "sentrits_core"
+name = "pty_claude"
 path = "src/lib.rs"
 
 [profile.release]

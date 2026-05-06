@@ -16,7 +16,7 @@
 cargo build --release
 ```
 
-The binary is produced at `target/release/sentrits.exe`.
+The binary is produced at `target/release/pty-claude.exe`.
 
 ### 2. Start the server
 
@@ -31,13 +31,13 @@ RUST_LOG=debug cargo run --release -- serve
 cargo run --release -- serve --admin-port 9000 --remote-port 9001
 
 # Custom data directory
-cargo run --release -- serve --datadir C:\sentrits-data
+cargo run --release -- serve --datadir C:\pty-claude-data
 ```
 
 You should see:
 
 ```
-Sentrits v0.2.5 starting...
+pty-claude v0.2.5 starting...
   Admin:  127.0.0.1:18085
   Remote: 0.0.0.0:18086
   Data:   ...
@@ -159,12 +159,12 @@ Child process exited with code 0              # Shell closed
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| "Failed to create session" | sentrits.exe not running | Start the server first |
+| "Failed to create session" | pty-claude.exe not running | Start the server first |
 | Terminal shows nothing | Browser can't reach server | Check http://localhost:18085/health |
 | Characters don't appear | Server not running with latest fix | Rebuild with `cargo build --release` |
 | Screen doesn't clear on `cls` | Old binary without poll_exit fix | Rebuild from source |
 | WebSocket disconnects immediately | Session already exited | Click "Start Terminal" again |
-| Port already in use | Another instance running | `taskkill /F /IM sentrits.exe` |
+| Port already in use | Another instance running | `taskkill /F /IM pty-claude.exe` |
 
 ## Running the automated WebSocket test
 
