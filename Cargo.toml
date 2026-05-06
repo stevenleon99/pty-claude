@@ -1,0 +1,87 @@
+[package]
+name = "sentrits-core"
+version = "0.2.5"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+description = "Terminal session management daemon with remote access, pairing, and evidence capture"
+authors = ["Sentrits Team"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP/WebSocket (for future phases)
+axum = { version = "0.7", features = ["ws", "macros"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["fs", "cors", "trace"] }
+tokio-tungstenite = "0.21"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# TLS (for future phases)
+rustls = "0.23"
+tokio-rustls = "0.26"
+rustls-pemfile = "2"
+
+# Terminal/PTY (for future phases)
+nix = { version = "0.28", features = ["term", "process", "signal", "fs", "feature"] }
+vte = "0.13"
+
+# File watching (for future phases)
+notify = "6"
+
+# Git inspection (for future phases)
+git2 = "0.18"
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Utilities
+thiserror = "1"
+anyhow = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+bytes = "1"
+futures = "0.3"
+pin-project-lite = "0.2"
+base64 = "0.22"
+rand = "0.8"
+dirs = "5"
+
+# Platform-specific
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+inotify = "0.10"
+
+[target.'cfg(windows)'.dependencies]
+portable-pty = "0.9"
+
+[dev-dependencies]
+tokio-test = "0.4"
+rstest = "0.18"
+proptest = "1"
+tempfile = "3"
+assert_matches = "1"
+pretty_assertions = "1"
+
+[[bin]]
+name = "sentrits"
+path = "src/main.rs"
+
+[lib]
+name = "sentrits_core"
+path = "src/lib.rs"
+
+[profile.release]
+lto = "thin"
+strip = true

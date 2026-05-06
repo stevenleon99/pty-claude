@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Terminal Demo</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5/css/xterm.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #1a1a2e;
+            color: #eee;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 20px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        #header h1 {
+            font-size: 18px;
+            font-weight: 500;
+            color: #e94560;
+        }
+
+        #controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #ff6b6b; }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        #shell-select {
+            padding: 6px 10px;
+            background: #0f3460;
+            border: 1px solid #1a1a2e;
+            color: #eee;
+            border-radius: 4px;
+        }
+
+        #terminal-container {
+            flex: 1;
+            padding: 10px;
+            background: #0d0d1a;
+            overflow: hidden;
+        }
+
+        #terminal {
+            height: 100%;
+        }
+
+        #status {
+            padding: 8px 20px;
+            background: #16213e;
+            border-top: 1px solid #0f3460;
+            font-size: 13px;
+            color: #888;
+        }
+
+        #status.connected { color: #4ade80; }
+        #status.error { color: #f87171; }
+        #status.disconnected { color: #fbbf24; }
+
+        .xterm {
+            padding: 8px;
+        }
+
+        .xterm-viewport::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .xterm-viewport::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+
+        .xterm-viewport::-webkit-scrollbar-thumb {
+            background: #0f3460;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>Web Terminal</h1>
+        <div id="controls">
+            <select id="shell-select">
+                <option value="cmd">cmd.exe</option>
+                <option value="powershell">powershell</option>
+                <option value="bash">bash (WSL)</option>
+            </select>
+            <button id="start-btn">Start Terminal</button>
+            <button id="stop-btn" disabled>Stop</button>
+        </div>
+    </div>
+
+    <div id="terminal-container">
+        <div id="terminal"></div>
+    </div>
+
+    <div id="status">Ready - Click "Start Terminal" to begin</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0/lib/addon-fit.js"></script>
+    <script>
+        const SERVER_URL = 'http://localhost:18085';
+        const WS_URL = 'ws://localhost:18085';
+
+        // Set to true to log all input/output bytes to browser console
+        const DEBUG_IO = true;
+
+        let term = null;
+        let fitAddon = null;
+        let ws = null;
+        let sessionId = null;
+        let resizeTimeout = null;
+
+        // Debug logger
+        function dbg(direction, data) {
+            if (!DEBUG_IO) return;
+            const bytes = new TextEncoder().encode(data);
+            const hex = Array.from(bytes).slice(0, 32).map(b => b.toString(16).padStart(2, '0')).join(' ');
+            const preview = data.length > 64 ? data.slice(0, 64) + '...' : data;
+            console.log(`[${direction}] ${bytes.length}B [${hex}] ${JSON.stringify(preview)}`);
+        }
+
+        // Initialize terminal
+        function initTerminal() {
+            if (term) return;
+
+            term = new Terminal({
+                theme: {
+                    background: '#0d0d1a',
+                    foreground: '#eee',
+                    cursor: '#e94560',
+                    cursorAccent: '#0d0d1a',
+                    selectionBackground: '#0f3460',
+                    black: '#1a1a2e',
+                    red: '#e94560',
+                    green: '#4ade80',
+                    yellow: '#fbbf24',
+                    blue: '#3b82f6',
+                    magenta: '#a855f7',
+                    cyan: '#22d3ee',
+                    white: '#eee',
+                    brightBlack: '#555',
+                    brightRed: '#ff6b6b',
+                    brightGreen: '#86efac',
+                    brightYellow: '#fde047',
+                    brightBlue: '#60a5fa',
+                    brightMagenta: '#c084fc',
+                    brightCyan: '#67e8f9',
+                    brightWhite: '#fff'
+                },
+                fontFamily: 'Consolas, "Courier New", monospace',
+                fontSize: 14,
+                cursorBlink: true,
+                cursorStyle: 'block',
+                scrollback: 5000
+            });
+
+            fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+
+            term.open(document.getElementById('terminal'));
+            fitAddon.fit();
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    if (fitAddon && term) {
+                        fitAddon.fit();
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            sendResize();
+                        }
+                    }
+                }, 100);
+            });
+
+            // Handle input
+            term.onData((data) => {
+                dbg('INP', data);
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'input', data: data }));
+                }
+            });
+
+            updateStatus('Terminal initialized', '');
+        }
+
+        // Get command based on shell selection
+        function getCommand() {
+            const shell = document.getElementById('shell-select').value;
+            switch (shell) {
+                case 'powershell':
+                    return { argv: ['powershell.exe', '-NoLogo'], shell: 'powershell' };
+                case 'bash':
+                    return { argv: ['bash', '-i'], shell: 'bash' };
+                default:
+                    return { argv: [], shell: 'cmd' };  // Empty = default cmd.exe
+            }
+        }
+
+        // Create session
+        async function createSession() {
+            const cmd = getCommand();
+
+            const payload = {
+                provider: 'codex',
+                workspace_root: '.',
+                title: 'Web Terminal Session'
+            };
+
+            // Only set command_argv if not using default cmd.exe
+            if (cmd.argv.length > 0) {
+                payload.command_argv = cmd.argv;
+            }
+
+            updateStatus('Creating session...', '');
+
+            try {
+                const resp = await fetch(`${SERVER_URL}/sessions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) {
+                    throw new Error(`Failed to create session: ${resp.status}`);
+                }
+
+                const data = await resp.json();
+                sessionId = data.session_id;
+
+                updateStatus(`Session created: ${sessionId}`, 'connected');
+                return sessionId;
+            } catch (e) {
+                updateStatus(`Error: ${e.message}`, 'error');
+                throw e;
+            }
+        }
+
+        // Connect WebSocket
+        function connectWebSocket(sid) {
+            ws = new WebSocket(`${WS_URL}/ws/sessions/${sid}`);
+
+            ws.onopen = () => {
+                updateStatus(`Connected to session ${sid}`, 'connected');
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('stop-btn').disabled = false;
+
+                // Send initial resize
+                sendResize();
+
+                // Focus terminal
+                term.focus();
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+
+                    if (msg.type === 'output') {
+                        dbg('OUT', msg.data);
+                        term.write(msg.data);
+                    } else if (msg.type === 'exited') {
+                        updateStatus(`Session exited (code: ${msg.code ?? 'unknown'})`, 'disconnected');
+                        term.write('\r\n\x1b[33m--- Session Ended ---\x1b[0m\r\n');
+                        cleanup();
+                    } else if (msg.type === 'error') {
+                        updateStatus(`Error: ${msg.message}`, 'error');
+                    } else if (msg.type === 'resized') {
+                        // Terminal was resized by server
+                    }
+                } catch (e) {
+                    // Might be raw text fallback
+                    dbg('OUT', event.data);
+                    term.write(event.data);
+                }
+            };
+
+            ws.onerror = (e) => {
+                updateStatus('WebSocket error', 'error');
+            };
+
+            ws.onclose = () => {
+                updateStatus('Disconnected', 'disconnected');
+                cleanup();
+            };
+        }
+
+        // Send resize command
+        function sendResize() {
+            if (!fitAddon || !term) return;
+
+            const dims = fitAddon.proposeDimensions();
+            if (dims && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'resize',
+                    columns: Math.floor(dims.cols),
+                    rows: Math.floor(dims.rows)
+                }));
+            }
+        }
+
+        // Stop session
+        async function stopSession() {
+            if (!sessionId) return;
+
+            try {
+                await fetch(`${SERVER_URL}/sessions/${sessionId}/stop`, {
+                    method: 'POST'
+                });
+            } catch (e) {
+                console.error('Stop error:', e);
+            }
+
+            if (ws) {
+                ws.close();
+            }
+
+            cleanup();
+            updateStatus('Session stopped', 'disconnected');
+        }
+
+        // Cleanup
+        function cleanup() {
+            ws = null;
+            sessionId = null;
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('stop-btn').disabled = true;
+        }
+
+        // Update status
+        function updateStatus(text, state) {
+            const el = document.getElementById('status');
+            el.textContent = text;
+            el.className = state;
+        }
+
+        // Start button handler
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            initTerminal();
+            term.clear();
+            term.write('\x1b[36mStarting terminal...\x1b[0m\r\n');
+
+            try {
+                const sid = await createSession();
+                connectWebSocket(sid);
+            } catch (e) {
+                term.write(`\x1b[31mFailed: ${e.message}\x1b[0m\r\n`);
+            }
+        });
+
+        // Stop button handler
+        document.getElementById('stop-btn').addEventListener('click', stopSession);
+
+        // Auto-start option ( uncomment to start immediately on load)
+        // window.addEventListener('load', () => {
+        //     document.getElementById('start-btn').click();
+        // });
+    </script>
+</body>
+</html>
