@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5/css/xterm.css">
+</head>
+<body>
+    <!-- Thin control bar — collapses when connected -->
+    <div id="toolbar">
+        <div id="toolbar-left">
+            <span id="shell-prompt">$_</span>
+            <select id="shell-select">
+                <option value="cmd">cmd</option>
+                <option value="powershell">powershell</option>
+                <option value="claude">claude</option>
+                <option value="bash">bash</option>
+            </select>
+            <button id="btn-start" class="btn">connect</button>
+            <button id="btn-stop" class="btn btn-stop" disabled>disconnect</button>
+        </div>
+        <div id="toolbar-center">
+            <span id="status-dot"></span>
+            <span id="status-text">ready</span>
+        </div>
+        <div id="toolbar-right">
+            <span id="term-size"></span>
+        </div>
+    </div>
+
+    <!-- Fullscreen terminal -->
+    <div id="terminal"></div>
+
+    <!-- Bottom status line — minimal -->
+    <div id="statusline">
+        <span id="sl-left"></span>
+        <span id="sl-center"></span>
+        <span id="sl-right">pty-claude</span>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0/lib/addon-fit.js"></script>
+    <script src="terminal.js"></script>
+</body>
+</html>

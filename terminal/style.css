@@ -1,0 +1,249 @@
+/* ═══════════════════════════════════════════════════════════
+   Classic green-on-black terminal — Deepin Terminal style
+   ═══════════════════════════════════════════════════════════ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --bg:           #000000;
+    --green:        #00ff00;
+    --green-dim:    #00aa00;
+    --green-dark:   #004400;
+    --green-glow:   rgba(0, 255, 0, 0.15);
+    --text:         #00ff00;
+    --text-dim:     #008800;
+    --toolbar-bg:   rgba(0, 20, 0, 0.92);
+    --toolbar-border: #003300;
+    --status-bg:    rgba(0, 15, 0, 0.95);
+    --status-border:#002200;
+    --btn-bg:       #001a00;
+    --btn-border:   #004400;
+    --btn-hover:    #003300;
+    --select-bg:    #001200;
+    --select-border:#004400;
+    --red:          #ff3333;
+    --yellow:       #cccc00;
+}
+
+html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 14px;
+    overflow: hidden;
+}
+
+/* ── Toolbar ── */
+
+#toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+    padding: 0 12px;
+    background: var(--toolbar-bg);
+    border-bottom: 1px solid var(--toolbar-border);
+    user-select: none;
+}
+
+#toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#shell-prompt {
+    color: var(--green);
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: 0 0 6px var(--green-glow);
+}
+
+#toolbar-center {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+#toolbar-right {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+/* ── Buttons ── */
+
+.btn {
+    padding: 2px 12px;
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 12px;
+    text-transform: lowercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn:hover {
+    background: var(--btn-hover);
+    border-color: var(--green-dim);
+}
+
+.btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.btn_stop {
+    border-color: #440000;
+    color: var(--red);
+}
+
+.btn_stop:hover:not(:disabled) {
+    background: #330000;
+    border-color: var(--red);
+}
+
+/* ── Select ── */
+
+#shell-select {
+    padding: 2px 6px;
+    background: var(--select-bg);
+    border: 1px solid var(--select-border);
+    color: var(--green-dim);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+}
+
+#shell-select:focus {
+    border-color: var(--green);
+}
+
+#shell-select option {
+    background: #000;
+    color: var(--green-dim);
+}
+
+/* ── Status dot ── */
+
+#status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    vertical-align: middle;
+}
+
+#status-dot.ok      { background: var(--green); box-shadow: 0 0 4px var(--green-glow); }
+#status-dot.warning { background: var(--yellow); }
+#status-dot.error   { background: var(--red); }
+#status-dot.off     { background: var(--text-dim); }
+
+/* ── Terminal ── */
+
+#terminal {
+    height: calc(100vh - 32px - 22px);
+    background: var(--bg);
+}
+
+/* ── Status Line ── */
+
+#statusline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 22px;
+    padding: 0 12px;
+    background: var(--status-bg);
+    border-top: 1px solid var(--status-border);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.3px;
+}
+
+#sl-center {
+    color: var(--text-dim);
+}
+
+#sl-right {
+    color: #004400;
+}
+
+/* ── xterm.js overrides — retro glow ── */
+
+.xterm {
+    padding: 4px 6px;
+    height: 100%;
+}
+
+/*
+   The glow effect: a subtle green text-shadow on every character.
+   Applied via xterm's own row rendering. This selector targets
+   the xterm screen element where character spans live.
+*/
+.xterm-rows {
+    text-shadow: 0 0 4px var(--green-glow);
+}
+
+/* Cursor glow */
+.xterm-cursor {
+    text-shadow: 0 0 8px var(--green), 0 0 16px rgba(0, 255, 0, 0.3) !important;
+}
+
+/* Selection */
+.xterm .xterm-selection div {
+    background: rgba(0, 100, 0, 0.35) !important;
+}
+
+/* Scrollbar */
+.xterm-viewport::-webkit-scrollbar {
+    width: 6px;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+    background: #000;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+    background: #003300;
+    border-radius: 3px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: #005500;
+}
+
+/* ── Scanline overlay (subtle CRT effect) ── */
+
+#terminal::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.08) 2px,
+        rgba(0, 0, 0, 0.08) 4px
+    );
+    z-index: 10;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 600px) {
+    #toolbar-right { display: none; }
+    #toolbar { padding: 0 6px; }
+    .btn { padding: 2px 6px; font-size: 11px; }
+}

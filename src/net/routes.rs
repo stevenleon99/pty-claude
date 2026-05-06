@@ -76,8 +76,11 @@ pub fn build_api_router(state: AppState) -> Router {
         // Observations
         .route("/observations", get(list_observations))
 
-        // Web terminal demo page
-        .route("/terminal", get(web_terminal))
+        // Web terminal static files
+        .route("/", get(terminal_index))
+        .route("/terminal", get(terminal_index))
+        .route("/style.css", get(terminal_css))
+        .route("/terminal.js", get(terminal_js))
 
         // WebSocket endpoints
         .route("/ws/sessions/:id", get(session_ws))
@@ -229,11 +232,15 @@ async fn create_session(
     };
 
     // Build launch spec
+    let mut effective_env = crate::session::env::EffectiveEnvironment::default();
+    // Pass any environment overrides from the client (e.g., ANTHROPIC_AUTH_TOKEN)
+    effective_env.overrides = payload.environment_overrides;
+
     let spec = LaunchSpec {
         provider,
         executable,
         arguments: argv,
-        effective_environment: crate::session::env::EffectiveEnvironment::default(),
+        effective_environment: effective_env,
         working_directory: if payload.workspace_root.is_empty() {
             ".".to_string()
         } else {
@@ -638,13 +645,31 @@ async fn list_observations(
     (StatusCode::NOT_IMPLEMENTED, Json(serde_json::json!({"error": "not implemented"})))
 }
 
-// --- Web Terminal Demo Page ---
+// --- Web Terminal Static Files ---
 
-async fn web_terminal() -> impl IntoResponse {
-    let html = include_str!("../../doc/web-terminal.html");
+async fn terminal_index() -> impl IntoResponse {
+    let html = include_str!("../../terminal/index.html");
     (
         StatusCode::OK,
         [("Content-Type", "text/html; charset=utf-8")],
         html,
+    )
+}
+
+async fn terminal_css() -> impl IntoResponse {
+    let css = include_str!("../../terminal/style.css");
+    (
+        StatusCode::OK,
+        [("Content-Type", "text/css; charset=utf-8")],
+        css,
+    )
+}
+
+async fn terminal_js() -> impl IntoResponse {
+    let js = include_str!("../../terminal/terminal.js");
+    (
+        StatusCode::OK,
+        [("Content-Type", "application/javascript; charset=utf-8")],
+        js,
     )
 }

@@ -96,6 +96,23 @@ mod inner {
             }
             cmd.cwd(&spec.working_directory);
 
+            // Ensure HOME matches USERPROFILE on Windows.
+            // When the server is launched from Git Bash, HOME is set to
+            // /c/Users/Steve (Unix path). ConPTY inherits this, and child
+            // tools like Claude CLI then fail to find ~/.claude/settings.json
+            // because /c/Users/Steve is not a valid Windows path.
+            // Fix: force HOME = USERPROFILE so it's always a Windows path.
+            if let Ok(userprofile) = std::env::var("USERPROFILE") {
+                cmd.env("HOME", &userprofile);
+                debug!("Set HOME={} (from USERPROFILE) for child process", userprofile);
+            }
+
+            // Apply any environment overrides from the session launch spec.
+            for (key, value) in &spec.effective_environment.overrides {
+                debug!("Env override: {}=<{} chars>", key, value.len());
+                cmd.env(key, value);
+            }
+
             // Spawn the child process
             let child = pair.slave
                 .spawn_command(cmd)

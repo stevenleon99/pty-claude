@@ -107,6 +107,9 @@ pub struct EnvEntry {
 pub struct EffectiveEnvironment {
     pub entries: Vec<EnvEntry>,
     pub mode: EnvMode,
+    /// Explicit overrides applied on top of inherited env.
+    #[serde(default)]
+    pub overrides: std::collections::HashMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bootstrap_shell_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
