@@ -1,73 +1,96 @@
-<p align="center">
-  <img src="doc/image/claude.png" alt="pty-claude terminal" width="680">
-</p>
+<div align="center">
 
-<h1 align="center">pty-claude</h1>
+<img src="doc/image/claude.png" alt="pty-claude" width="700">
 
-<p align="center">
-  <strong>Remote terminal access with a web UI</strong><br>
-  Stream your ConPTY / PTY sessions to any browser — local or over the internet.
-</p>
+# pty-claude
 
-<p align="center">
-  <img src="https://img.shields.io/badge/rust-1.75+-orange?style=flat-square" alt="rust">
-  <img src="https://img.shields.io/badge/platform-windows%20%7C%20linux-blue?style=flat-square" alt="platform">
-  <img src="https://img.shields.io/badge/version-0.2.5-green?style=flat-square" alt="version">
-</p>
+**Your terminal, in any browser.**
+
+Stream real ConPTY / PTY shell sessions over WebSocket to a sleek web UI —
+whether you're on localhost or halfway across the planet.
+
+<br>
+
+[![Rust](https://img.shields.io/badge/Rust-1.75+-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Platform](https://img.shields.io/badge/Windows%20%7C%20Linux-4A90D9?style=for-the-badge&logo=windows&logoColor=white)](https://github.com)
+[![Version](https://img.shields.io/badge/v0.2.5-2EA043?style=for-the-badge&logoColor=white)](https://github.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+
+<br>
+
+[Getting Started](#getting-started) &bull; [Features](#features) &bull; [Screenshots](#screenshots) &bull; [Architecture](#architecture) &bull; [API](#api-reference)
+
+</div>
 
 ---
 
-## What it does
+## Why pty-claude?
 
-**pty-claude** is a lightweight Rust daemon that hosts terminal sessions and streams them over WebSocket to a web-based terminal UI. Open a browser, pick your shell (cmd, PowerShell, bash), and get a real terminal — from anywhere.
+You need a **real terminal**, not a toy. pty-claude gives you a native shell
+(cmd, PowerShell, bash) rendered in the browser with full ANSI color support,
+proper cursor handling, and real I/O — all over WebSocket. No plugins, no
+extensions, no nonsense.
 
-| Feature | Details |
-|---|---|
-| Web terminal | xterm.js-based green-on-black terminal in the browser |
-| Shell selector | Choose cmd / PowerShell / bash from the toolbar |
-| WebSocket streaming | Real-time I/O with ANSI color support |
-| Password lock | Login gate before terminal access |
-| PWA installable | Add to home screen on desktop or mobile |
-| Cloudflare Tunnel | One-command public URL with `dev.sh` |
-| Dual ports | Admin (localhost:18085) + Remote (public:18086) |
+## Features
+
+| | Feature | Description |
+|---|---|---|
+| :computer: | **Web Terminal** | xterm.js-powered green-on-black terminal with full ANSI color support |
+| :shell: | **Shell Selector** | Switch between cmd, PowerShell, and bash from the toolbar |
+| :zap: | **WebSocket Streaming** | Real-time bidirectional I/O with low-latency input handling |
+| :lock: | **Password Gate** | Login-protected access before any terminal session starts |
+| :iphone: | **PWA Installable** | Add to home screen on desktop or mobile for an app-like experience |
+| :globe_with_meridians: | **Cloudflare Tunnel** | One command to expose your terminal over the internet |
+| :wrench: | **Dual Ports** | Admin panel on `localhost:18085` &mdash; public terminal on `:18086` |
 
 ## Screenshots
 
-<p align="center">
-  <img src="doc/image/login.png" alt="login screen" width="360">
+<div align="center">
+  <img src="doc/image/login.png" alt="Login screen" width="380">
   &nbsp;&nbsp;
-  <img src="doc/image/mainpage.png" alt="terminal" width="360">
-</p>
+  <img src="doc/image/mainpage.png" alt="Terminal" width="380">
+</div>
 
-## Quick start
+## Getting Started
 
-### Build & run
+### Prerequisites
+
+- [Rust](https://www.rust-lang.org/tools/install) 1.75 or later
+- On Windows: the MSVC build tools (via Visual Studio Build Tools)
+- On Linux: `gcc` and standard development headers
+
+### Build & Run
 
 ```bash
+# Clone the repo
+git clone https://github.com/your-user/pty-claude.git
+cd pty-claude
+
+# Build and start
 cargo build
 cargo run -- serve
 ```
 
-Open [http://127.0.0.1:18086](http://127.0.0.1:18086).
+Open [http://127.0.0.1:18086](http://127.0.0.1:18086) and start typing.
 
-### With Cloudflare Tunnel (public URL)
+### Expose via Cloudflare Tunnel
 
 ```bash
 ./dev.sh
 ```
 
-This builds the project, starts the server, and opens a Cloudflare Tunnel so you can share your terminal over the internet.
+This builds the project, starts the server, and opens a Cloudflare Tunnel —
+giving you a public URL to share your terminal instantly.
 
-### CLI options
+### CLI Options
 
-```bash
+```
 pty-claude serve [OPTIONS]
 
-Options:
-  --admin-host <HOST>     Admin bind address (default: 127.0.0.1)
-  --admin-port <PORT>     Admin port (default: 18085)
-  --remote-host <HOST>    Remote bind address (default: 0.0.0.0)
-  --remote-port <PORT>    Remote port (default: 18086)
+  --admin-host <HOST>     Admin bind address   (default: 127.0.0.1)
+  --admin-port <PORT>     Admin port           (default: 18085)
+  --remote-host <HOST>    Remote bind address  (default: 0.0.0.0)
+  --remote-port <PORT>    Remote port          (default: 18086)
   --datadir <DIR>         Data directory path
   --no-discovery          Disable UDP discovery
 ```
@@ -75,17 +98,19 @@ Options:
 ## Architecture
 
 ```
- Browser                          Rust Server                    OS
- ───────                          ───────────                    ──
-┌─────────┐   WebSocket    ┌──────────────┐   ConPTY/PTY   ┌──────────┐
-│ xterm.js │◄────────────►│  axum + ws   │◄─────────────►│ cmd/bash │
-│  web UI  │   JSON I/O    │  :18086      │   stdin/stdout │  ps1     │
-└─────────┘               └──────────────┘               └──────────┘
+ Browser                           Rust Server                     OS
+ ───────                           ───────────                     ──
+┌──────────┐   WebSocket    ┌───────────────┐   ConPTY/PTY  ┌──────────┐
+│ xterm.js │◄─────────────►│  axum + ws    │◄─────────────►│ cmd/bash │
+│  web UI  │   JSON I/O     │  :18086       │  stdin/stdout │  ps1     │
+└──────────┘                └───────────────┘              └──────────┘
 
-                          ┌──────────────┐
-                          │  admin API   │  :18085 (localhost only)
-                          └──────────────┘
+                            ┌───────────────┐
+                            │  admin API    │  :18085 (localhost only)
+                            └───────────────┘
 ```
+
+### Source Layout
 
 ```
 src/
@@ -98,7 +123,7 @@ src/
 └── terminal/          Web UI (HTML, CSS, JS, PWA)
 ```
 
-## API
+## API Reference
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -109,34 +134,35 @@ src/
 | `POST` | `/sessions/:id/stop` | Stop a session |
 | `POST` | `/sessions/:id/resize` | Resize terminal |
 | `WS` | `/ws/sessions/:id` | Terminal I/O stream |
-| `WS` | `/ws/overview` | Session overview |
+| `WS` | `/ws/overview` | Session overview stream |
 
 ## Web UI
 
-The terminal frontend in `terminal/` is:
+The frontend lives in `terminal/` and is built with **zero tooling**:
 
-- **Zero build step** — plain HTML/CSS/JS, no bundler
-- **xterm.js** from CDN for proper terminal emulation (cursor, ANSI colors, scrollback)
-- **PWA-ready** — `manifest.json` + service worker for offline install
-- **Responsive** — works on desktop, tablet, and mobile
+- **No build step** &mdash; plain HTML, CSS, and JavaScript
+- **xterm.js** loaded from CDN for full terminal emulation (cursor, ANSI colors, scrollback)
+- **PWA-ready** with `manifest.json` and a service worker for offline install
+- **Responsive** design that works on desktop, tablet, and mobile
 
-### Customization
+### Customization Points
 
-Search for these markers in the code to configure:
-
-| Marker | File | What it controls |
-|--------|------|-----------------|
+| Marker | File | Controls |
+|--------|------|----------|
 | `[PASSWORD]` | `terminal/terminal.js` | Login password |
 | `[WS-URL]` | `terminal/terminal.js` | WebSocket server URL |
 | `[THEME]` | `terminal/style.css` | Colors and fonts |
 
-## Tech stack
+## Tech Stack
 
-- **Rust** — tokio async runtime, axum HTTP framework
-- **ConPTY** (Windows) / **POSIX PTY** (Linux) — native terminal drivers
-- **xterm.js** — browser terminal emulator
-- **Cloudflare Tunnel** — zero-config public access
+| Layer | Technology |
+|-------|-----------|
+| Runtime | [tokio](https://tokio.rs/) async runtime |
+| HTTP | [axum](https://github.com/tokio-rs/axum) web framework |
+| Terminal | ConPTY (Windows) / POSIX PTY (Linux) |
+| Frontend | [xterm.js](https://xtermjs.org/) |
+| Tunnel | [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) |
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).
