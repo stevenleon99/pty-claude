@@ -1,68 +1,31 @@
 /**
- * terminal.js — Classic green-on-black terminal for pty-claude
+ * terminal.js — ConPTY Remote Terminal
  *
- * Data flow:
+ * Uses xterm.js for proper terminal emulation with correct cursor positioning.
  *
- *   [Browser]                              [Rust Server]              [Windows]
- *   ────────                               ────────────               ────────
- *   keystroke
- *     │
- *     ├─ xterm.js onData()
- *     │
- *     ├─ ws.send({"type":"input","data":"\r"})
- *     │                                      │
- *     │                                      ├─ parse JSON
- *     │                                      ├─ session.write(bytes)
- *     │                                      │            │
- *     │                                      │            ▼
- *     │                                      │   ConPTY stdin → cmd.exe / claude
- *     │                                      │
- *     │                                      │   ConPTY stdout (background thread)
- *     │                                      │            │
- *     │                                      ├─ session.read() → channel drain
- *     │                                      │
- *     │   ws.onmessage ← JSON output  ◄─────┤
- *     │      │
- *     ├─ term.write(data)
- *     │   ANSI escape sequences rendered
- *     │
- *   screen updates
- *
- *
- * Input encoding (critical for correct terminal behavior):
- *   ┌──────────┬───────────┬──────────────────────────────┐
- *   │ Key      │ Bytes     │ Note                         │
- *   ├──────────┼───────────┼──────────────────────────────┤
- *   │ Enter    │ \r (0x0d) │ NOT \n — shells expect CR    │
- *   │ Backspace│ \x7f      │ DEL character                │
- *   │ Ctrl+C   │ \x03      │ ETX — sends SIGINT           │
- *   │ Ctrl+D   │ \x04      │ EOT — end of input           │
- *   │ Up       │ \x1b[A    │ ANSI CSI sequence             │
- *   │ Down     │ \x1b[B    │                              │
- *   │ Right    │ \x1b[C    │                              │
- *   │ Left     │ \x1b[D    │                              │
- *   │ Tab      │ \t (0x09) │                              │
- *   │ Esc      │ \x1b      │ Start of escape sequence     │
- *   │ Home     │ \x1b[H    │                              │
- *   │ End      │ \x1b[F    │                              │
- *   │ PgUp     │ \x1b[5~   │                              │
- *   │ PgDn     │ \x1b[6~   │                              │
- *   └──────────┴───────────┴──────────────────────────────┘
- *
- * xterm.js onData() handles ALL of these correctly.
- * We pass them through unmodified — no buffering, no translation.
+ * CUSTOMIZATION — search for these markers:
+ *   [PASSWORD]  hard-coded login password
+ *   [WS-URL]    WebSocket server URL
  */
 
-// ─── Configuration ───
+// ═══════════════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════════════
 
-const loc = window.location;
 const CONFIG = {
-    serverUrl: `${loc.protocol}//${loc.host}`,
-    wsUrl:     `${loc.protocol === 'https:' ? 'wss:' : 'ws:'}//${loc.host}`,
-    debug:     true,
+    // [PASSWORD] Hard-coded password — NOT secure
+    password: '1234',
+
+    // [WS-URL] Backend server URL (auto-detected from page location)
+    serverUrl: `${location.protocol}//${location.host}`,
+    wsUrl: `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`,
+
+    debug: true,
 };
 
-// ─── State ───
+// ═══════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════
 
 const S = {
     term: null,
@@ -70,25 +33,21 @@ const S = {
     ws: null,
     sid: null,
     connected: false,
+    authenticated: false,
     resizeTimer: null,
 };
 
-// ─── Logging ───
+// ═══════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+
+function $(id) { return document.getElementById(id); }
 
 function log(tag, ...args) {
     if (!CONFIG.debug) return;
     const t = new Date().toISOString().slice(11, 23);
     console.log(`%c[${t}][${tag}]`, 'color:#008800', ...args);
 }
-
-function hex(data, n = 24) {
-    const b = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-    return Array.from(b.slice(0, n)).map(v => v.toString(16).padStart(2, '0')).join(' ');
-}
-
-// ─── UI helpers ───
-
-function $(id) { return document.getElementById(id); }
 
 function status(cls, text) {
     $('status-dot').className = cls;
@@ -101,9 +60,35 @@ function updateSize() {
     $('term-size').textContent = `${S.term.cols}x${S.term.rows}`;
 }
 
-// ─── Terminal creation ───
+// ═══════════════════════════════════════════════════════════════════════
+// LOGIN
+// ═══════════════════════════════════════════════════════════════════════
 
-function createTerminal() {
+function handleLogin(e) {
+    if (e) e.preventDefault();
+    const input = $('pw-input');
+    const box = document.querySelector('.lock-box');
+
+    if (input.value === CONFIG.password) {
+        S.authenticated = true;
+        input.value = '';
+        $('lock-overlay').classList.add('unlocked');
+        initTerminal();
+    } else {
+        $('pw-error').textContent = 'wrong password';
+        input.value = '';
+        input.focus();
+        box.classList.remove('shake');
+        box.offsetHeight;
+        box.classList.add('shake');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TERMINAL INIT (xterm.js)
+// ═══════════════════════════════════════════════════════════════════════
+
+function initTerminal() {
     if (S.term) return;
 
     S.term = new Terminal({
@@ -112,7 +97,7 @@ function createTerminal() {
             foreground:             '#00ff00',
             cursor:                 '#00ff00',
             cursorAccent:           '#000000',
-            selectionBackground:    'rgba(0, 100, 0, 0.4)',
+            selectionBackground:    'rgba(0,100,0,0.4)',
             selectionForeground:    '#00ff00',
             black:                  '#000000',
             red:                    '#aa0000',
@@ -149,7 +134,7 @@ function createTerminal() {
 
     // Every keystroke → backend, unmodified
     S.term.onData(data => {
-        log('INP', `${data.length}B [${hex(data)}] ${JSON.stringify(data)}`);
+        log('INP', `${data.length}B`);
         if (S.ws?.readyState === WebSocket.OPEN) {
             S.ws.send(JSON.stringify({ type: 'input', data }));
         }
@@ -166,9 +151,18 @@ function createTerminal() {
     });
 
     updateSize();
+    status('off', 'ready');
+
+    // Setup toolbar buttons
+    $('btn-start').addEventListener('click', handleStart);
+    $('btn-stop').addEventListener('click', stopSession);
+
+    log('INIT', 'xterm ready');
 }
 
-// ─── Session API ───
+// ═══════════════════════════════════════════════════════════════════════
+// SESSION API
+// ═══════════════════════════════════════════════════════════════════════
 
 async function createSession() {
     const shell = $('shell-select').value;
@@ -183,9 +177,6 @@ async function createSession() {
         payload.command_argv = ['powershell.exe', '-NoLogo'];
     } else if (shell === 'bash') {
         payload.command_argv = ['bash', '-i'];
-    } else if (shell === 'claude') {
-        payload.command_argv = ['claude.exe'];
-        payload.provider = 'claude';
     }
 
     log('API', 'POST /sessions', payload);
@@ -204,11 +195,15 @@ async function createSession() {
 
 async function stopSession() {
     if (!S.sid) return;
-    try { await fetch(`${CONFIG.serverUrl}/sessions/${S.sid}/stop`, { method: 'POST' }); } catch {}
+    try {
+        await fetch(`${CONFIG.serverUrl}/sessions/${S.sid}/stop`, { method: 'POST' });
+    } catch {}
     disconnect();
 }
 
-// ─── WebSocket ───
+// ═══════════════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ═══════════════════════════════════════════════════════════════════════
 
 function connect(sid) {
     S.sid = sid;
@@ -232,7 +227,7 @@ function connect(sid) {
         try {
             const m = JSON.parse(ev.data);
             if (m.type === 'output') {
-                log('OUT', `${m.data.length}B [${hex(m.data, 32)}]`);
+                log('OUT', `${m.data.length}B`);
                 S.term.write(m.data);
             } else if (m.type === 'exited') {
                 S.term.write('\r\n\x1b[33m── process exited ──\x1b[0m\r\n');
@@ -278,10 +273,11 @@ function sendResize() {
     S.ws.send(JSON.stringify(msg));
 }
 
-// ─── Start / Stop ───
+// ═══════════════════════════════════════════════════════════════════════
+// START / STOP HANDLERS
+// ═══════════════════════════════════════════════════════════════════════
 
 async function handleStart() {
-    createTerminal();
     S.term.reset();
     S.term.write('\x1b[33mconnecting...\x1b[0m\r\n');
     status('warning', 'connecting...');
@@ -296,19 +292,21 @@ async function handleStart() {
     }
 }
 
-// ─── Init ───
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', () => {
-    $('btn-start').addEventListener('click', handleStart);
-    $('btn-stop').addEventListener('click', () => { stopSession(); });
+    // Service worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js')
+            .then(reg => log('SW', 'registered', reg.scope))
+            .catch(err => log('SW', 'failed', err));
+    }
 
-    document.addEventListener('keydown', e => {
-        if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-            e.preventDefault();
-            if (!S.connected) handleStart();
-        }
-    });
+    // Login
+    $('pw-btn').addEventListener('click', handleLogin);
+    $('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(e); });
 
-    status('off', 'ready');
     log('INIT', 'loaded');
 });

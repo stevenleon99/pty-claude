@@ -2,20 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terminal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ConPTY Terminal</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5/css/xterm.css">
 </head>
 <body>
-    <!-- Thin control bar — collapses when connected -->
+
+    <!-- Login overlay -->
+    <div id="lock-overlay">
+        <div class="lock-box">
+            <div class="lock-icon">&gt;_</div>
+            <input type="password" id="pw-input" placeholder="password" autofocus spellcheck="false" autocomplete="off">
+            <button id="pw-btn">Unlock</button>
+            <div id="pw-error" class="pw-error"></div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
     <div id="toolbar">
         <div id="toolbar-left">
             <span id="shell-prompt">$_</span>
             <select id="shell-select">
                 <option value="cmd">cmd</option>
                 <option value="powershell">powershell</option>
-                <option value="claude">claude</option>
                 <option value="bash">bash</option>
             </select>
             <button id="btn-start" class="btn">connect</button>
@@ -30,10 +44,10 @@
         </div>
     </div>
 
-    <!-- Fullscreen terminal -->
+    <!-- xterm.js terminal -->
     <div id="terminal"></div>
 
-    <!-- Bottom status line — minimal -->
+    <!-- Status line -->
     <div id="statusline">
         <span id="sl-left"></span>
         <span id="sl-center"></span>

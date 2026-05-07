@@ -81,6 +81,8 @@ pub fn build_api_router(state: AppState) -> Router {
         .route("/terminal", get(terminal_index))
         .route("/style.css", get(terminal_css))
         .route("/terminal.js", get(terminal_js))
+        .route("/manifest.json", get(terminal_manifest))
+        .route("/service-worker.js", get(terminal_service_worker))
 
         // WebSocket endpoints
         .route("/ws/sessions/:id", get(session_ws))
@@ -667,6 +669,24 @@ async fn terminal_css() -> impl IntoResponse {
 
 async fn terminal_js() -> impl IntoResponse {
     let js = include_str!("../../terminal/terminal.js");
+    (
+        StatusCode::OK,
+        [("Content-Type", "application/javascript; charset=utf-8")],
+        js,
+    )
+}
+
+async fn terminal_manifest() -> impl IntoResponse {
+    let json = include_str!("../../terminal/manifest.json");
+    (
+        StatusCode::OK,
+        [("Content-Type", "application/manifest+json; charset=utf-8")],
+        json,
+    )
+}
+
+async fn terminal_service_worker() -> impl IntoResponse {
+    let js = include_str!("../../terminal/service-worker.js");
     (
         StatusCode::OK,
         [("Content-Type", "application/javascript; charset=utf-8")],

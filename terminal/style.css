@@ -1,40 +1,142 @@
-/* ═══════════════════════════════════════════════════════════
-   Classic green-on-black terminal — Deepin Terminal style
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   ConPTY Remote Terminal
+   [THEME] Modify CSS variables to change colors
+   ═══════════════════════════════════════════════════════════════════════ */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-    --bg:           #000000;
-    --green:        #00ff00;
-    --green-dim:    #00aa00;
-    --green-dark:   #004400;
-    --green-glow:   rgba(0, 255, 0, 0.15);
-    --text:         #00ff00;
-    --text-dim:     #008800;
-    --toolbar-bg:   rgba(0, 20, 0, 0.92);
+    --bg:          #000;
+    --green:       #00ff00;
+    --green-dim:   #00aa00;
+    --green-dark:  #004400;
+    --green-glow:  rgba(0,255,0,0.15);
+    --text:        #00ff00;
+    --text-dim:    #008800;
+    --toolbar-bg:  rgba(0,20,0,0.92);
     --toolbar-border: #003300;
-    --status-bg:    rgba(0, 15, 0, 0.95);
-    --status-border:#002200;
-    --btn-bg:       #001a00;
-    --btn-border:   #004400;
-    --btn-hover:    #003300;
-    --select-bg:    #001200;
-    --select-border:#004400;
-    --red:          #ff3333;
-    --yellow:       #cccc00;
+    --status-bg:   rgba(0,15,0,0.95);
+    --status-border:  #002200;
+    --btn-bg:      #001a00;
+    --btn-border:  #004400;
+    --btn-hover:   #003300;
+    --red:         #ff3333;
+    --yellow:      #cccc00;
+    --font-mono:   'JetBrains Mono','Fira Code','Cascadia Code','Consolas',monospace;
 }
 
 html, body {
     height: 100%;
     background: var(--bg);
     color: var(--text);
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    font-family: var(--font-mono);
     font-size: 14px;
     overflow: hidden;
 }
 
-/* ── Toolbar ── */
+/* ═══ LOGIN OVERLAY ═══ */
+
+#lock-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.5s, visibility 0.5s;
+}
+
+#lock-overlay.unlocked {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.lock-box {
+    text-align: center;
+    width: 300px;
+    padding: 48px 32px 40px;
+    background: #141414;
+    border: 1px solid #222;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.lock-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, #00cc33, #009926);
+    border-radius: 14px;
+    font-family: var(--font-mono);
+}
+
+#pw-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: #0d0d0d;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #eee;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    outline: none;
+    text-align: center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#pw-input:focus {
+    border-color: #00cc33;
+    box-shadow: 0 0 0 3px rgba(0,204,51,0.15);
+}
+
+#pw-input::placeholder { color: #444; }
+
+#pw-btn {
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px;
+    background: linear-gradient(135deg, #00cc33, #009926);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+}
+
+#pw-btn:hover  { opacity: 0.9; }
+#pw-btn:active { transform: scale(0.98); }
+
+.pw-error {
+    margin-top: 12px;
+    font-size: 12px;
+    color: #ff4444;
+    min-height: 16px;
+}
+
+.lock-box.shake {
+    animation: shake 0.35s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%      { transform: translateX(-10px); }
+    40%      { transform: translateX(10px); }
+    60%      { transform: translateX(-6px); }
+    80%      { transform: translateX(6px); }
+}
+
+/* ═══ TOOLBAR ═══ */
 
 #toolbar {
     display: flex;
@@ -73,7 +175,7 @@ html, body {
     color: var(--text-dim);
 }
 
-/* ── Buttons ── */
+/* Buttons */
 
 .btn {
     padding: 2px 12px;
@@ -88,32 +190,18 @@ html, body {
     transition: background 0.15s, border-color 0.15s;
 }
 
-.btn:hover {
-    background: var(--btn-hover);
-    border-color: var(--green-dim);
-}
+.btn:hover { background: var(--btn-hover); border-color: var(--green-dim); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-.btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-}
+.btn_stop { border-color: #440000; color: var(--red); }
+.btn_stop:hover:not(:disabled) { background: #330000; border-color: var(--red); }
 
-.btn_stop {
-    border-color: #440000;
-    color: var(--red);
-}
-
-.btn_stop:hover:not(:disabled) {
-    background: #330000;
-    border-color: var(--red);
-}
-
-/* ── Select ── */
+/* Shell select */
 
 #shell-select {
     padding: 2px 6px;
-    background: var(--select-bg);
-    border: 1px solid var(--select-border);
+    background: #001200;
+    border: 1px solid #004400;
     color: var(--green-dim);
     font-family: inherit;
     font-size: 12px;
@@ -121,16 +209,10 @@ html, body {
     outline: none;
 }
 
-#shell-select:focus {
-    border-color: var(--green);
-}
+#shell-select:focus { border-color: var(--green); }
+#shell-select option { background: #000; color: var(--green-dim); }
 
-#shell-select option {
-    background: #000;
-    color: var(--green-dim);
-}
-
-/* ── Status dot ── */
+/* Status dot */
 
 #status-dot {
     display: inline-block;
@@ -146,14 +228,46 @@ html, body {
 #status-dot.error   { background: var(--red); }
 #status-dot.off     { background: var(--text-dim); }
 
-/* ── Terminal ── */
+/* ═══ TERMINAL (xterm.js) ═══ */
 
 #terminal {
     height: calc(100vh - 32px - 22px);
     background: var(--bg);
 }
 
-/* ── Status Line ── */
+.xterm {
+    padding: 4px 6px;
+    height: 100%;
+}
+
+.xterm-rows {
+    text-shadow: 0 0 4px var(--green-glow);
+}
+
+.xterm-cursor {
+    text-shadow: 0 0 8px var(--green), 0 0 16px rgba(0,255,0,0.3) !important;
+}
+
+.xterm .xterm-selection div {
+    background: rgba(0,100,0,0.35) !important;
+}
+
+.xterm-viewport::-webkit-scrollbar          { width: 6px; }
+.xterm-viewport::-webkit-scrollbar-track    { background: #000; }
+.xterm-viewport::-webkit-scrollbar-thumb    { background: #003300; border-radius: 3px; }
+.xterm-viewport::-webkit-scrollbar-thumb:hover { background: #005500; }
+
+/* Scanline overlay */
+#terminal::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
+    z-index: 10;
+}
+
+/* ═══ STATUS LINE ═══ */
 
 #statusline {
     display: flex;
@@ -168,79 +282,10 @@ html, body {
     letter-spacing: 0.3px;
 }
 
-#sl-center {
-    color: var(--text-dim);
-}
+#sl-center { color: var(--text-dim); }
+#sl-right  { color: #004400; }
 
-#sl-right {
-    color: #004400;
-}
-
-/* ── xterm.js overrides — retro glow ── */
-
-.xterm {
-    padding: 4px 6px;
-    height: 100%;
-}
-
-/*
-   The glow effect: a subtle green text-shadow on every character.
-   Applied via xterm's own row rendering. This selector targets
-   the xterm screen element where character spans live.
-*/
-.xterm-rows {
-    text-shadow: 0 0 4px var(--green-glow);
-}
-
-/* Cursor glow */
-.xterm-cursor {
-    text-shadow: 0 0 8px var(--green), 0 0 16px rgba(0, 255, 0, 0.3) !important;
-}
-
-/* Selection */
-.xterm .xterm-selection div {
-    background: rgba(0, 100, 0, 0.35) !important;
-}
-
-/* Scrollbar */
-.xterm-viewport::-webkit-scrollbar {
-    width: 6px;
-}
-
-.xterm-viewport::-webkit-scrollbar-track {
-    background: #000;
-}
-
-.xterm-viewport::-webkit-scrollbar-thumb {
-    background: #003300;
-    border-radius: 3px;
-}
-
-.xterm-viewport::-webkit-scrollbar-thumb:hover {
-    background: #005500;
-}
-
-/* ── Scanline overlay (subtle CRT effect) ── */
-
-#terminal::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0, 0, 0, 0.08) 2px,
-        rgba(0, 0, 0, 0.08) 4px
-    );
-    z-index: 10;
-}
-
-/* ── Responsive ── */
+/* ═══ RESPONSIVE ═══ */
 
 @media (max-width: 600px) {
     #toolbar-right { display: none; }
