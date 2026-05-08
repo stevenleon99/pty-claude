@@ -268,6 +268,7 @@ fn main() {
                 host_config_store,
                 observation_store,
                 session_registry,
+                terminal_password: std::env::var("PTY_PASSWORD").unwrap_or_else(|_| "1111".to_string()),
             };
 
             let config = ServerConfig {

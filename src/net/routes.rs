@@ -34,6 +34,9 @@ pub fn build_api_router(state: AppState) -> Router {
         // Health
         .route("/health", get(health_check))
 
+        // Terminal auth
+        .route("/auth/login", post(auth_login))
+
         // Pairing
         .route("/pairing/request", post(pairing_request))
         .route("/pairing/pending", get(pairing_pending))
@@ -96,6 +99,26 @@ pub fn build_api_router(state: AppState) -> Router {
 
 async fn health_check() -> impl IntoResponse {
     (StatusCode::OK, "ok\n")
+}
+
+// --- Terminal Auth ---
+
+#[derive(Debug, Deserialize)]
+struct LoginPayload {
+    password: String,
+}
+
+#[derive(Debug, Serialize)]
+struct LoginResponse {
+    ok: bool,
+}
+
+async fn auth_login(
+    State(state): State<AppState>,
+    Json(payload): Json<LoginPayload>,
+) -> impl IntoResponse {
+    let ok = payload.password == state.terminal_password;
+    (StatusCode::OK, Json(LoginResponse { ok }))
 }
 
 // --- Pairing Handlers ---

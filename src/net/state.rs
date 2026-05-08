@@ -22,6 +22,8 @@ pub struct AppState {
     pub observation_store: Arc<RwLock<ObservationStore>>,
     /// Active PTY sessions, accessible by WebSocket handlers.
     pub session_registry: Arc<SessionRegistry>,
+    /// Password for the web terminal lock screen (from PTY_PASSWORD env, default "1234").
+    pub terminal_password: String,
 }
 
 // Safety: AppState only contains Arc and RwLock wrapped types, all Send + Sync.

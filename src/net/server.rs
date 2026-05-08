@@ -142,6 +142,7 @@ impl Clone for AppState {
             host_config_store: self.host_config_store.clone(),
             observation_store: self.observation_store.clone(),
             session_registry: self.session_registry.clone(),
+            terminal_password: self.terminal_password.clone(),
         }
     }
 }

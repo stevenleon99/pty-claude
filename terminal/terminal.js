@@ -4,7 +4,6 @@
  * Uses xterm.js for proper terminal emulation with correct cursor positioning.
  *
  * CUSTOMIZATION — search for these markers:
- *   [PASSWORD]  hard-coded login password
  *   [WS-URL]    WebSocket server URL
  */
 
@@ -13,8 +12,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 const CONFIG = {
-    // [PASSWORD] Hard-coded password — NOT secure
-    password: '1234',
+    // Password is validated server-side — never stored in frontend code.
 
     // [WS-URL] Backend server URL (auto-detected from page location)
     serverUrl: `${location.protocol}//${location.host}`,
@@ -35,6 +33,9 @@ const S = {
     connected: false,
     authenticated: false,
     resizeTimer: null,
+    reconnectTimer: null,
+    reconnectAttempts: 0,
+    userDisconnected: false,
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -64,23 +65,42 @@ function updateSize() {
 // LOGIN
 // ═══════════════════════════════════════════════════════════════════════
 
-function handleLogin(e) {
+async function handleLogin(e) {
     if (e) e.preventDefault();
     const input = $('pw-input');
     const box = document.querySelector('.lock-box');
+    const btn = $('pw-btn');
 
-    if (input.value === CONFIG.password) {
-        S.authenticated = true;
-        input.value = '';
-        $('lock-overlay').classList.add('unlocked');
-        initTerminal();
-    } else {
-        $('pw-error').textContent = 'wrong password';
-        input.value = '';
-        input.focus();
-        box.classList.remove('shake');
-        box.offsetHeight;
-        box.classList.add('shake');
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+        const r = await fetch(`${CONFIG.serverUrl}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: input.value }),
+        });
+        const d = await r.json();
+
+        if (d.ok) {
+            S.authenticated = true;
+            input.value = '';
+            $('lock-overlay').classList.add('unlocked');
+            initTerminal();
+        } else {
+            $('pw-error').textContent = 'wrong password';
+            input.value = '';
+            input.focus();
+            box.classList.remove('shake');
+            box.offsetHeight;
+            box.classList.add('shake');
+        }
+    } catch (err) {
+        log('ERR', 'login failed', err);
+        $('pw-error').textContent = 'server error';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Unlock';
     }
 }
 
@@ -207,6 +227,7 @@ async function stopSession() {
 
 function connect(sid) {
     S.sid = sid;
+    S.userDisconnected = false;
     const url = `${CONFIG.wsUrl}/ws/sessions/${sid}`;
     log('WS', '→', url);
 
@@ -214,6 +235,7 @@ function connect(sid) {
 
     S.ws.onopen = () => {
         S.connected = true;
+        S.reconnectAttempts = 0;
         log('WS', 'connected');
         status('ok', 'connected');
         $('sl-left').textContent = sid.slice(0, 16);
@@ -246,16 +268,46 @@ function connect(sid) {
     };
 
     S.ws.onclose = () => {
+        const wasConnected = S.connected;
         S.connected = false;
         if (!S.sid) return;
-        status('off', 'disconnected');
-        S.term.write('\r\n\x1b[33m── disconnected ──\x1b[0m\r\n');
-        $('btn-start').disabled = false;
-        $('btn-stop').disabled = true;
+
+        if (S.userDisconnected) {
+            // User intentionally stopped — don't reconnect
+            status('off', 'disconnected');
+            S.term.write('\r\n\x1b[33m── disconnected ──\x1b[0m\r\n');
+            $('btn-start').disabled = false;
+            $('btn-stop').disabled = true;
+            return;
+        }
+
+        // Unexpected disconnect (background, network drop) — auto-reconnect
+        log('WS', 'connection lost, will reconnect');
+        status('warning', 'reconnecting...');
+        S.term.write('\r\n\x1b[33m── connection lost, reconnecting... ──\x1b[0m\r\n');
+        scheduleReconnect();
     };
 }
 
+function scheduleReconnect() {
+    if (S.userDisconnected || !S.sid) return;
+
+    clearTimeout(S.reconnectTimer);
+    // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
+    const delay = Math.min(1000 * Math.pow(2, S.reconnectAttempts), 30000);
+    S.reconnectAttempts++;
+
+    log('RECONNECT', `attempt ${S.reconnectAttempts} in ${delay}ms`);
+    S.reconnectTimer = setTimeout(() => {
+        if (S.userDisconnected || !S.sid) return;
+        log('RECONNECT', `reconnecting to session ${S.sid}`);
+        connect(S.sid);
+    }, delay);
+}
+
 function disconnect() {
+    S.userDisconnected = true;
+    clearTimeout(S.reconnectTimer);
     S.connected = false;
     S.ws?.close();
     S.ws = null;
@@ -303,6 +355,17 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(reg => log('SW', 'registered', reg.scope))
             .catch(err => log('SW', 'failed', err));
     }
+
+    // Reconnect when app returns from background
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        if (!S.sid || S.userDisconnected || S.connected) return;
+
+        log('RECONNECT', 'app foregrounded, reconnecting immediately');
+        clearTimeout(S.reconnectTimer);
+        S.reconnectAttempts = 0;
+        connect(S.sid);
+    });
 
     // Login
     $('pw-btn').addEventListener('click', handleLogin);

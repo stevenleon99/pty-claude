@@ -2,6 +2,9 @@
 set -euo pipefail
 
 # ─── pty-claude dev launcher with Cloudflare Tunnel ───
+# Usage:
+#   ./dev.sh                 # serve from current directory
+#   ./dev.sh /path/to/dir    # serve from specified directory
 
 # Colors
 GRN='\033[0;32m'
@@ -12,6 +15,20 @@ RST='\033[0m'
 log()  { printf "${GRN}[pty-claude]${RST} %s\n" "$*"; }
 info() { printf "${CYN}[tunnel]${RST}   %s\n" "$*"; }
 die()  { printf "${RED}[error]${RST}    %s\n" "$*" >&2; exit 1; }
+
+# ─── Resolve paths relative to this script ───
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BINARY="${SCRIPT_DIR}/target/debug/pty-claude.exe"
+
+if [ ! -x "$BINARY" ]; then
+    die "binary not found at ${BINARY} — run 'cargo build' first"
+fi
+
+# ─── Working directory: argument, env var, or current dir ───
+WORK_DIR="${1:-${PTY_WORKSPACE:-$(pwd)}}"
+
+# Resolve to absolute path
+WORK_DIR="$(cd "$WORK_DIR" 2>/dev/null && pwd)" || die "directory not found: $1"
 
 # ─── Cleanup on exit ───
 PID_SERVER=0
@@ -27,17 +44,16 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# ─── Build ───
-log "building..."
-cargo build || die "build failed"
-log "build ok"
-
 # ─── Start server ───
 REMOTE_PORT="${REMOTE_PORT:-18086}"
 ADMIN_PORT="${ADMIN_PORT:-18085}"
+export PTY_PASSWORD="${PTY_PASSWORD:-1234}"
 
 log "starting pty-claude on :${REMOTE_PORT} (admin :${ADMIN_PORT})"
-cargo run -- serve \
+log "workspace: ${WORK_DIR}"
+cd "$WORK_DIR"
+
+"$BINARY" serve \
     --remote-port "$REMOTE_PORT" \
     --admin-port  "$ADMIN_PORT" \
     &
